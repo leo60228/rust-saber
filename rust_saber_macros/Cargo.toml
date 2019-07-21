@@ -1,0 +1,15 @@
+[package]
+name = "rust_saber_macros"
+version = "0.1.0"
+authors = ["leo60228 <iakornfeld@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+syn = { version = "0.15.34", features = [ "full" ] }
+quote = "0.6.12"
+proc-macro2 = "0.4.30"
