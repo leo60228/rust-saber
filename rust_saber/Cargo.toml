@@ -13,7 +13,7 @@ rust_saber_macros = { path = "../rust_saber_macros" }
 libc = "0.2.60"
 proc-maps = "0.1.6"
 lazy_static = "1.3.0"
-log-panics = "2.0.0"
+log-panics = { version = "2.0.0", features = ["with-backtrace"] }
 android_log-sys = "0.1.2"
 
 [build-dependencies]

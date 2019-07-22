@@ -1,27 +1,26 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::env;
+use std::sync::Once;
 use std::ffi::CString;
 use lazy_static::lazy_static;
 use log::*;
 
 pub use rust_saber_macros::*;
 
-static INITIALIZED: AtomicBool = AtomicBool::new(false);
+static INIT: Once = Once::new();
 
 pub fn init_once(name: &'static str) {
-    if INITIALIZED.swap(true, Ordering::SeqCst) {
-        return;
-    }
+    INIT.call_once(move || {
+        android_logger::init_once(
+            android_logger::Config::default()
+                .with_tag(name)
+                .with_min_level(Level::Trace)
+        );
 
-    android_logger::init_once(
-        android_logger::Config::default()
-            .with_tag(name)
-            .with_min_level(Level::Trace)
-    );
+        env::set_var("RUST_BACKTRACE", "1");
+        log_panics::init();
 
-    //log_panics::init();
-
-    unsafe { android_log_sys::__android_log_write(android_log_sys::LogPriority::INFO as _, b"sample_mod\0" as *const _, b"test\0" as *const _); }
-    info!("{} initialized!", name);
+        info!("{} initialized!", name);
+    });
 }
 
 lazy_static! {
@@ -35,7 +34,7 @@ pub fn base_addr(so_name: &str) -> u64 {
         0
     } else {
         let maps = proc_maps::get_process_maps(unsafe { libc::getpid() }).unwrap();
-        let map = maps.iter().find(|e| e.filename().as_ref().unwrap().ends_with(so_name)).unwrap();
+        let map = maps.iter().find(|e| e.filename().as_ref().map(|e| e.ends_with(so_name)).unwrap_or(false)).expect("Can't find base address in mappings!");
         map.start() as u64
     }
 }

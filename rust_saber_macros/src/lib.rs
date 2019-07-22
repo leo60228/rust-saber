@@ -101,7 +101,7 @@ pub fn hook(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pro
         #[allow(non_upper_case_globals)]
         #[link_section = ".init_array"]
         #[no_mangle]
-        static #ctor_ident: extern "C" fn() = {
+        static #ctor_ident: [extern "C" fn(); 1] = {
             #wrapper
 
             static mut orig: Option<#orig_type_ident> = None;
@@ -111,7 +111,7 @@ pub fn hook(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pro
                 unsafe { orig = Some(std::mem::transmute(::rust_saber::hook(wrapper as #orig_type_ident as u32, #addr))); }
             };
 
-            apply
+            [apply]
         };
     };
 

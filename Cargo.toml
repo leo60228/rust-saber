@@ -8,12 +8,3 @@ members = [
 [patch.crates-io.proc-maps]
 git = "https://github.com/leo60228/proc-maps.git"
 branch = "android"
-
-[patch.crates-io.android_logger]
-git = "https://github.com/leo60228/android_logger-rs.git"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"

@@ -1,2 +1,2 @@
 [build]
-target = "arm-linux-androideabi"
+target = "armv7-linux-androideabi"
