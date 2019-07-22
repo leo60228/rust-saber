@@ -32,6 +32,32 @@ impl Parse for HookArgs {
     }
 }
 
+/// Hook a function to another function. This takes two arguments. The first is the address of the
+/// hooked function relative to the start of libil2cpp.so, and the second is the name of the mod to
+/// initialize rust-saber with. The function used must be unsafe. However, it does not need to have
+/// any specific ABI.
+///
+/// # Examples
+/// ```rust,no_run
+/// # #[repr(C)]
+/// # #[derive(Default)]
+/// # pub struct Color {
+/// #     pub r: f32,
+/// #     pub g: f32,
+/// #     pub b: f32,
+/// #     pub a: f32,
+/// # }
+/// #[rust_saber::hook(0x12DC59C, "example")]
+/// pub unsafe fn get_color(orig: GetColorFn, this: *mut std::ffi::c_void) -> Color {
+///     let orig_color = unsafe { orig(this) };
+///     Color {
+///         r: 1.0,
+///         g: orig_color.g,
+///         b: orig_color.b,
+///         a: orig_color.a,
+///     }
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn hook(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match panic::catch_unwind(move || hook_impl(attr, item)) {
@@ -51,16 +77,18 @@ fn hook_impl(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pr
     let addr = args.address;
     let name = args.name;
 
-    let mut input = syn::parse_macro_input!(item as syn::ItemFn);
-    input.abi = Some(Abi {
-        extern_token: Token![extern](Span::call_site()),
-        name: Some(LitStr::new("C", Span::call_site())),
-    });
+    let input = syn::parse_macro_input!(item as syn::ItemFn);
+    if input.unsafety.is_none() {
+        proc_error!("Hook must be unsafe!");
+    }
 
     let orig_type = syn::TypeBareFn {
         lifetimes: None,
         unsafety: Some(Token![unsafe](Span::call_site())),
-        abi: input.abi.clone(),
+        abi: Some(Abi {
+            extern_token: Token![extern](Span::call_site()),
+            name: Some(LitStr::new("C", Span::call_site())),
+        }),
         fn_token: input.decl.fn_token.clone(),
         paren_token: input.decl.paren_token.clone(),
         variadic: input.decl.variadic.clone(),
@@ -100,6 +128,10 @@ fn hook_impl(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pr
 
     let mut wrapper = input.clone();
     wrapper.ident = syn::Ident::new("wrapper", Span::call_site());
+    wrapper.abi = Some(Abi {
+        extern_token: Token![extern](Span::call_site()),
+        name: Some(LitStr::new("C", Span::call_site())),
+    });
     wrapper.decl.inputs = wrapper.decl.inputs.into_iter().skip(1).collect();
     let args: syn::punctuated::Punctuated<syn::Ident, Token![,]> = wrapper.decl.inputs.iter().map(|arg| match arg {
         syn::FnArg::Captured(cap) => match &cap.pat {
@@ -109,7 +141,7 @@ fn hook_impl(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pr
         _ => panic!("Unsupported argument!"),
     }).collect();
     wrapper.block = Box::new(syn::parse_quote!({
-        #ident(unsafe { #orig_ident.unwrap() }, #args)
+        #ident(#orig_ident.unwrap(), #args)
     }));
 
     let codegen = quote! {
