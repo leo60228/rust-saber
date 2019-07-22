@@ -17,3 +17,8 @@ pub fn get_color(orig: GetColorFn, this: *mut std::ffi::c_void) -> Color {
         a: orig_color.a,
     }
 }
+
+/*#[rust_saber::hook(0x12DC59C, "sample_mod")]
+pub fn error_test() {
+
+}*/

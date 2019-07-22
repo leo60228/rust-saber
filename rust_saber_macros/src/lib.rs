@@ -3,6 +3,7 @@
 extern crate proc_macro;
 
 use std::convert::TryInto;
+use std::panic;
 use quote::quote;
 use syn::{Abi, Token, LitStr};
 use syn::parse::{Parse, ParseStream, Result};
@@ -11,6 +12,12 @@ use proc_macro2::Span;
 struct HookArgs {
     address: u32,
     name: String,
+}
+
+macro_rules! proc_error {
+    ($msg:expr) => {
+        return syn::Error::new(Span::call_site(), $msg).to_compile_error().into();
+    }
 }
 
 impl Parse for HookArgs {
@@ -27,6 +34,19 @@ impl Parse for HookArgs {
 
 #[proc_macro_attribute]
 pub fn hook(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    match panic::catch_unwind(move || hook_impl(attr, item)) {
+        Ok(res) => res,
+        Err(err) => {
+            if let Ok(err) = err.downcast::<String>() {
+                proc_error!(err);
+            } else {
+                panic!("internal macro error");
+            }
+        },
+    }
+}
+
+fn hook_impl(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let args = syn::parse_macro_input!(attr as HookArgs);
     let addr = args.address;
     let name = args.name;
@@ -62,7 +82,7 @@ pub fn hook(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pro
         output: input.decl.output.clone(),
     };
 
-    let orig_type_ident = if let syn::FnArg::Captured(cap) = input.decl.inputs.first().clone().unwrap().into_value() {
+    let orig_type_ident = if let syn::FnArg::Captured(cap) = input.decl.inputs.first().clone().expect("No arguments in hook!").into_value() {
         if let syn::Type::Path(path) = &cap.ty {
             path.path.segments.last().clone().unwrap().into_value().ident.clone()
         } else {
