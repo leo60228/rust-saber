@@ -8,11 +8,14 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.6"
-rust_saber_macros = { path = "../rust_saber_macros" }
 libc = "0.2.60"
 proc-maps = "0.1.6"
 lazy_static = "1.3.0"
 log-panics = { version = "2.0.0", features = ["with-backtrace"] }
+
+[dependencies.rust_saber_macros]
+path = "../rust_saber_macros"
+version = "0.1.0"
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.8.3"
