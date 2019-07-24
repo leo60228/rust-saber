@@ -7,7 +7,7 @@ pub struct Color {
     pub a: f32,
 }
 
-#[rust_saber::hook(0x12DC59C, "sample_mod")]
+#[rust_saber::hook(0x12DC59C)]
 pub unsafe fn get_color(orig: GetColorFn, this: *mut std::ffi::c_void) -> Color {
     let orig_color = orig(this);
     Color {
@@ -17,8 +17,3 @@ pub unsafe fn get_color(orig: GetColorFn, this: *mut std::ffi::c_void) -> Color 
         a: orig_color.a,
     }
 }
-
-/*#[rust_saber::hook(0x12DC59C, "sample_mod")]
-pub fn error_test() {
-
-}*/

@@ -11,7 +11,7 @@ use syn::{Abi, LitStr, Token};
 
 struct HookArgs {
     address: u32,
-    name: String,
+    name: Option<String>,
 }
 
 macro_rules! proc_error {
@@ -25,23 +25,26 @@ macro_rules! proc_error {
 impl Parse for HookArgs {
     fn parse(input: ParseStream) -> Result<Self> {
         let int = input.parse::<syn::LitInt>()?;
-        input.parse::<Token![,]>()?;
-        let string = input.parse::<syn::LitStr>()?;
+        let string = input
+            .parse::<Token![,]>()
+            .and_then(|_| input.parse::<syn::LitStr>())
+            .map(|lit| lit.value())
+            .ok();
         Ok(HookArgs {
             address: int
                 .value()
                 .try_into()
                 .map_err(|_| syn::Error::new(int.span(), "address too large"))?,
-            name: string.value(),
+            name: string,
         })
     }
 }
 
-/// Hook a function to another function. This takes two arguments. The first is
-/// the address of the hooked function relative to the start of libil2cpp.so,
-/// and the second is the name of the mod to initialize rust-saber with. The
-/// function used must be unsafe. However, it does not need to have any specific
-/// ABI.
+/// Hook a function to another function. This takes two arguments, the second of
+/// which is optional. The first is the address of the hooked function relative
+/// to the start of libil2cpp.so, and the second is the name of the mod to
+/// initialize rust-saber with, defaulting to the crate name. The function used
+/// must be unsafe. However, it does not need to have any specific ABI.
 ///
 /// # Examples
 /// ```rust,no_run
@@ -53,7 +56,7 @@ impl Parse for HookArgs {
 /// #     pub b: f32,
 /// #     pub a: f32,
 /// # }
-/// #[rust_saber::hook(0x12DC59C, "example")]
+/// #[rust_saber::hook(0x12DC59C, "sample_mod")]
 /// pub unsafe fn get_color(orig: GetColorFn, this: *mut std::ffi::c_void) -> Color {
 ///     let orig_color = unsafe { orig(this) };
 ///     Color {
@@ -87,7 +90,11 @@ fn hook_impl(
 ) -> proc_macro::TokenStream {
     let args = syn::parse_macro_input!(attr as HookArgs);
     let addr = args.address;
-    let name = args.name;
+
+    let name = match args.name {
+        Some(name) => quote!(#name),
+        None => quote!(env!("CARGO_PKG_NAME")),
+    };
 
     let input = syn::parse_macro_input!(item as syn::ItemFn);
     if input.unsafety.is_none() {
