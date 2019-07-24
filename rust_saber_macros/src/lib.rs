@@ -27,8 +27,12 @@ impl Parse for HookArgs {
         let int = input.parse::<syn::LitInt>()?;
         let string = input
             .parse::<Token![,]>()
-            .and_then(|_| input.parse::<syn::LitStr>())
-            .map(|lit| lit.value())
+            .map(|_| {
+                input
+                    .parse::<syn::LitStr>()
+                    .expect("Invalid string!")
+                    .value()
+            })
             .ok();
         Ok(HookArgs {
             address: int
