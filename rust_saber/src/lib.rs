@@ -1,4 +1,5 @@
-//! rust-saber allows writing mods for the Oculus Quest version of Beat Saber in Rust.
+//! rust-saber allows writing mods for the Oculus Quest version of Beat Saber in
+//! Rust.
 //!
 //! # Examples
 //! ```rust,no_run
@@ -37,9 +38,10 @@ pub use rust_saber_macros::hook;
 
 static INIT: Once = Once::new();
 
-/// This must be called once with the name of your mod by your program for rust-saber to work
-/// properly. Currently, this is called automatically by every hook. In the future, there may
-/// be more specific guarantees about what happens when this is not called.
+/// This must be called once with the name of your mod by your program for
+/// rust-saber to work properly. Currently, this is called automatically by
+/// every hook. In the future, there may be more specific guarantees about what
+/// happens when this is not called.
 pub fn init_once(name: &'static str) {
     INIT.call_once(move || {
         #[cfg(target_os = "android")]
@@ -119,12 +121,12 @@ extern "C" {
     fn inlineHook(target: u32) -> Ele7enStatus;
 }
 
-/// Hook the function at addr, using the function at func as a replacement. This should not be used
-/// directly, use the hook attribute instead.
+/// Hook the function at addr, using the function at func as a replacement. This
+/// should not be used directly, use the hook attribute instead.
 ///
 /// # Unsafety
-/// This can cause unsafety if either function is not a valid address, or if they have different
-/// signatures.
+/// This can cause unsafety if either function is not a valid address, or if
+/// they have different signatures.
 pub unsafe fn hook(func: u32, addr: u32) -> *mut () {
     trace!("0x{:x} -> 0x{:x}", addr, func);
     let mut ptr: *mut u32 = std::ptr::null_mut();

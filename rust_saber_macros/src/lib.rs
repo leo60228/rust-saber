@@ -37,10 +37,11 @@ impl Parse for HookArgs {
     }
 }
 
-/// Hook a function to another function. This takes two arguments. The first is the address of the
-/// hooked function relative to the start of libil2cpp.so, and the second is the name of the mod to
-/// initialize rust-saber with. The function used must be unsafe. However, it does not need to have
-/// any specific ABI.
+/// Hook a function to another function. This takes two arguments. The first is
+/// the address of the hooked function relative to the start of libil2cpp.so,
+/// and the second is the name of the mod to initialize rust-saber with. The
+/// function used must be unsafe. However, it does not need to have any specific
+/// ABI.
 ///
 /// # Examples
 /// ```rust,no_run
