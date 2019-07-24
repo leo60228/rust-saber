@@ -25,20 +25,22 @@ macro_rules! proc_error {
 impl Parse for HookArgs {
     fn parse(input: ParseStream) -> Result<Self> {
         let int = input.parse::<syn::LitInt>()?;
-        let string = input
-            .parse::<Token![,]>()
-            .map(|_| {
+        let string = if let Ok(_) = input.parse::<Token![,]>() {
+            Some(
                 input
                     .parse::<syn::LitStr>()
-                    .expect("Invalid string!")
-                    .value()
-            })
-            .ok();
+                    .map_err(|err| syn::Error::new(err.span(), "Invalid mod name!"))?
+                    .value(),
+            )
+        } else {
+            None
+        };
+
         Ok(HookArgs {
             address: int
                 .value()
                 .try_into()
-                .map_err(|_| syn::Error::new(int.span(), "address too large"))?,
+                .map_err(|_| syn::Error::new(int.span(), "Address too large!"))?,
             name: string,
         })
     }
