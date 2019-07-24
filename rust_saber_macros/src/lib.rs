@@ -2,12 +2,12 @@
 
 extern crate proc_macro;
 
+use proc_macro2::Span;
+use quote::quote;
 use std::convert::TryInto;
 use std::panic;
-use quote::quote;
-use syn::{Abi, Token, LitStr};
 use syn::parse::{Parse, ParseStream, Result};
-use proc_macro2::Span;
+use syn::{Abi, LitStr, Token};
 
 struct HookArgs {
     address: u32,
@@ -16,8 +16,10 @@ struct HookArgs {
 
 macro_rules! proc_error {
     ($msg:expr) => {
-        return syn::Error::new(Span::call_site(), $msg).to_compile_error().into();
-    }
+        return syn::Error::new(Span::call_site(), $msg)
+            .to_compile_error()
+            .into();
+    };
 }
 
 impl Parse for HookArgs {
@@ -26,7 +28,10 @@ impl Parse for HookArgs {
         input.parse::<Token![,]>()?;
         let string = input.parse::<syn::LitStr>()?;
         Ok(HookArgs {
-            address: int.value().try_into().map_err(|_| syn::Error::new(int.span(), "address too large"))?,
+            address: int
+                .value()
+                .try_into()
+                .map_err(|_| syn::Error::new(int.span(), "address too large"))?,
             name: string.value(),
         })
     }
@@ -59,7 +64,10 @@ impl Parse for HookArgs {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn hook(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn hook(
+    attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     match panic::catch_unwind(move || hook_impl(attr, item)) {
         Ok(res) => res,
         Err(err) => {
@@ -68,11 +76,14 @@ pub fn hook(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pro
             } else {
                 panic!("internal macro error");
             }
-        },
+        }
     }
 }
 
-fn hook_impl(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+fn hook_impl(
+    attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     let args = syn::parse_macro_input!(attr as HookArgs);
     let addr = args.address;
     let name = args.name;
@@ -92,27 +103,53 @@ fn hook_impl(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pr
         fn_token: input.decl.fn_token.clone(),
         paren_token: input.decl.paren_token.clone(),
         variadic: input.decl.variadic.clone(),
-        inputs: input.decl.inputs.iter().skip(1).map(|arg| match arg {
-            syn::FnArg::Captured(cap) => syn::BareFnArg {
-                name: match &cap.pat {
-                    syn::Pat::Ident(ident) => Some((syn::BareFnArgName::Named(ident.ident.clone()), cap.colon_token.clone())),
-                    syn::Pat::Wild(wild) => Some((syn::BareFnArgName::Wild(wild.underscore_token), cap.colon_token.clone())),
-                    _ => None,
+        inputs: input
+            .decl
+            .inputs
+            .iter()
+            .skip(1)
+            .map(|arg| match arg {
+                syn::FnArg::Captured(cap) => syn::BareFnArg {
+                    name: match &cap.pat {
+                        syn::Pat::Ident(ident) => Some((
+                            syn::BareFnArgName::Named(ident.ident.clone()),
+                            cap.colon_token.clone(),
+                        )),
+                        syn::Pat::Wild(wild) => Some((
+                            syn::BareFnArgName::Wild(wild.underscore_token),
+                            cap.colon_token.clone(),
+                        )),
+                        _ => None,
+                    },
+                    ty: cap.ty.clone(),
                 },
-                ty: cap.ty.clone(),
-            },
-            syn::FnArg::Ignored(ignored) => syn::BareFnArg {
-                name: None,
-                ty: ignored.clone(),
-            },
-            _ => panic!("Unsupported argument!"),
-        }).collect(),
+                syn::FnArg::Ignored(ignored) => syn::BareFnArg {
+                    name: None,
+                    ty: ignored.clone(),
+                },
+                _ => panic!("Unsupported argument!"),
+            })
+            .collect(),
         output: input.decl.output.clone(),
     };
 
-    let orig_type_ident = if let syn::FnArg::Captured(cap) = input.decl.inputs.first().clone().expect("No arguments in hook!").into_value() {
+    let orig_type_ident = if let syn::FnArg::Captured(cap) = input
+        .decl
+        .inputs
+        .first()
+        .clone()
+        .expect("No arguments in hook!")
+        .into_value()
+    {
         if let syn::Type::Path(path) = &cap.ty {
-            path.path.segments.last().clone().unwrap().into_value().ident.clone()
+            path.path
+                .segments
+                .last()
+                .clone()
+                .unwrap()
+                .into_value()
+                .ident
+                .clone()
         } else {
             panic!("Invalid orig!");
         }
@@ -133,13 +170,18 @@ fn hook_impl(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> pr
         name: Some(LitStr::new("C", Span::call_site())),
     });
     wrapper.decl.inputs = wrapper.decl.inputs.into_iter().skip(1).collect();
-    let args: syn::punctuated::Punctuated<syn::Ident, Token![,]> = wrapper.decl.inputs.iter().map(|arg| match arg {
-        syn::FnArg::Captured(cap) => match &cap.pat {
-            syn::Pat::Ident(ident) => ident.ident.clone(),
-            _ => unimplemented!(),
-        },
-        _ => panic!("Unsupported argument!"),
-    }).collect();
+    let args: syn::punctuated::Punctuated<syn::Ident, Token![,]> = wrapper
+        .decl
+        .inputs
+        .iter()
+        .map(|arg| match arg {
+            syn::FnArg::Captured(cap) => match &cap.pat {
+                syn::Pat::Ident(ident) => ident.ident.clone(),
+                _ => unimplemented!(),
+            },
+            _ => panic!("Unsupported argument!"),
+        })
+        .collect();
     wrapper.block = Box::new(syn::parse_quote!({
         #ident(#orig_ident.unwrap(), #args)
     }));

@@ -26,11 +26,11 @@
 //! The full version of this example can be found at
 //! <https://github.com/leo60228/rust-saber/tree/master/sample_mod>.
 
-use std::env;
-use std::sync::Once;
-use std::ffi::CString;
 use lazy_static::lazy_static;
 use log::*;
+use std::env;
+use std::ffi::CString;
+use std::sync::Once;
 
 #[doc(inline)]
 pub use rust_saber_macros::hook;
@@ -46,7 +46,7 @@ pub fn init_once(name: &'static str) {
         android_logger::init_once(
             android_logger::Config::default()
                 .with_tag(name)
-                .with_min_level(Level::Trace)
+                .with_min_level(Level::Trace),
         );
 
         env::set_var("RUST_BACKTRACE", "1");
@@ -57,7 +57,8 @@ pub fn init_once(name: &'static str) {
 }
 
 lazy_static! {
-    static ref BASE_ADDR: u64 = base_addr("/data/app/com.beatgames.beatsaber-1/lib/arm/libil2cpp.so");
+    static ref BASE_ADDR: u64 =
+        base_addr("/data/app/com.beatgames.beatsaber-1/lib/arm/libil2cpp.so");
 }
 
 /// Get the base address of any .so file loaded into the current process.
@@ -79,7 +80,15 @@ pub fn base_addr(so_path: &str) -> u64 {
         0
     } else {
         let maps = proc_maps::get_process_maps(unsafe { libc::getpid() }).unwrap();
-        let map = maps.iter().find(|e| e.filename().as_ref().map(|e| e.ends_with(so_path)).unwrap_or(false)).expect("Can't find base address in mappings!");
+        let map = maps
+            .iter()
+            .find(|e| {
+                e.filename()
+                    .as_ref()
+                    .map(|e| e.ends_with(so_path))
+                    .unwrap_or(false)
+            })
+            .expect("Can't find base address in mappings!");
         map.start() as u64
     }
 }
@@ -105,7 +114,7 @@ enum Ele7enStatus {
 }
 
 #[cfg(target_os = "android")]
-extern {
+extern "C" {
     fn registerInlineHook(target: u32, new: u32, orig: *mut *mut u32) -> Ele7enStatus;
     fn inlineHook(target: u32) -> Ele7enStatus;
 }
